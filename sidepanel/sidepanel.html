@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WP Dev Pad</title>
+    <link rel="stylesheet" href="./sidepanel.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">WP</span>
+        <div class="brand-text">
+          <strong>WP Dev Pad</strong>
+          <small id="site-line"></small>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="role-chip" class="hidden"></span>
+        <button id="btn-track" class="btn btn-xs hidden" type="button">Track site</button>
+        <button id="queue-badge" class="badge hidden" type="button"></button>
+        <button id="btn-sync" class="icon-btn" type="button" title="Sync now" aria-label="Sync now">&#8635;</button>
+        <button id="btn-settings" class="icon-btn" type="button" title="Settings" aria-label="Settings">&#9881;</button>
+      </div>
+    </header>
+
+    <div id="offline-strip" class="strip hidden"></div>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab" data-tab="snippets" role="tab" type="button">Snippets</button>
+      <button class="tab" data-tab="checklist" role="tab" type="button">Checklist</button>
+      <button class="tab" data-tab="handbook" role="tab" type="button">Handbook</button>
+    </nav>
+
+    <main id="panels">
+      <section id="panel-snippets" class="panel"></section>
+      <section id="panel-checklist" class="panel hidden"></section>
+      <section id="panel-handbook" class="panel hidden"></section>
+    </main>
+
+    <div id="drawer" class="drawer hidden">
+      <div class="drawer-box">
+        <header class="drawer-head">
+          <strong>Settings</strong>
+          <button id="drawer-close" class="icon-btn" type="button" aria-label="Close settings">&times;</button>
+        </header>
+        <div id="drawer-body" class="drawer-body"></div>
+      </div>
+    </div>
+
+    <script src="./sidepanel.js"></script>
+  </body>
+</html>

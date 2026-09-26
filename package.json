@@ -1,0 +1,39 @@
+{
+  "name": "wp-dev-pad",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MV3 side panel: snippets, site checklists and a WordPress handbook backed by one Google Sheet.",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "check": "node build.mjs --check",
+    "smoke": "node tools/smoke.mjs",
+    "ui": "node build.mjs --check && node tools/dom-smoke.mjs",
+    "probe": "node tools/headless-probe.mjs",
+    "icons": "node tools/make-icons.mjs",
+    "verify": "node tools/smoke.mjs && node build.mjs --check && node tools/dom-smoke.mjs && node build.mjs && node tools/headless-probe.mjs"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "^6.7.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/lang-php": "^6.0.1",
+    "@codemirror/lang-python": "^6.1.6",
+    "@codemirror/lang-sql": "^6.8.0",
+    "@codemirror/lang-xml": "^6.1.0",
+    "@codemirror/lang-yaml": "^6.1.1",
+    "@codemirror/language": "^6.10.3",
+    "@codemirror/legacy-modes": "^6.4.1",
+    "@codemirror/search": "^6.5.8",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.34.1",
+    "@lezer/highlight": "^1.2.1",
+    "codemirror": "^6.0.1",
+    "esbuild": "^0.24.0",
+    "jsdom": "^30.1.1"
+  }
+}

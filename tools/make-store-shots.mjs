@@ -10,7 +10,7 @@
  * Usage: node tools/make-store-shots.mjs
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -166,6 +166,13 @@ if (!existsSync(resolve(root, 'dist/sidepanel.html'))) {
   process.exit(1);
 }
 mkdirSync(outDir, { recursive: true });
+
+// Clear previous output first. A shot that is skipped this run would otherwise
+// leave last run's file in place, and a stale shot can be a byte-identical
+// duplicate of another one - which is exactly what this tool exists to prevent.
+for (const old of readdirSync(outDir)) {
+  if (old.toLowerCase().endsWith('.png')) rmSync(join(outDir, old), { force: true });
+}
 
 const html = readFileSync(resolve(root, 'dist/sidepanel.html'), 'utf8');
 const work = mkdtempSync(join(tmpdir(), 'wpd-shots-'));

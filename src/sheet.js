@@ -15,12 +15,17 @@ export function readableError(msg) {
   const known = {
     INVALID_CREDENTIALS: 'That name and password do not match an active user.',
     NO_CREDENTIALS: 'Enter your name and password first.',
+    // Codes only a pre-name/password deployment can return. They mean the Apps
+    // Script needs redeploying, which is otherwise invisible.
+    INVALID_KEY: 'The web app is out of date and still expects an access key. Redeploy it from Apps Script (Deploy > New deployment > Web app).',
+    NO_KEY: 'The web app is out of date. Redeploy it from Apps Script (Deploy > New deployment > Web app).',
     ADMIN_REQUIRED: 'Only an admin can do that.',
     PROGRESS_KEY_REQUIRED: 'An older queued change had no site on it. It was dropped - try again.',
     PROGRESS_ARGS_REQUIRED: 'A checklist change was missing its site or item.',
     SHEET_ID_MISSING: 'No spreadsheet is configured yet.',
     NAME_REQUIRED: 'That name is required.',
     PASSWORD_REQUIRED: 'That password is required.',
+    // Pre-name/password deployments still return this one.
     LABEL_REQUIRED: 'That name is required.',
     HOST_REQUIRED: 'That site is required.'
   };

@@ -29,6 +29,25 @@ function say(text, kind = 'info') {
   messageNode.className = `drawer-msg drawer-msg-${kind}`;
 }
 
+/** The Apps Script this build talks to. Keep in step with apps-script.gs VERSION. */
+const REQUIRED_VERSION = 5;
+
+/**
+ * A web app that answers but is older than this build is the single most
+ * confusing failure there is: the sheet looks configured, writes half work,
+ * and sign-in answers with a raw code from a version you cannot see. Say so.
+ */
+function sayIfStale_(version) {
+  if (Number(version) >= REQUIRED_VERSION) return false;
+  say(
+    `The web app is version ${version}, but this extension needs version ${REQUIRED_VERSION}. `
+    + 'Open the Apps Script project, paste the latest apps-script.gs, then Deploy > New deployment > Web app '
+    + '(the /exec URL does not change).',
+    'bad'
+  );
+  return true;
+}
+
 export function extractSheetId(value) {
   const raw = String(value || '').trim();
   const m = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -120,7 +139,8 @@ function renderSteps(host) {
           try {
             const res = await ping();
             setSettings({ appVersion: String(res.version) });
-            say(`Web app OK (version ${res.version}).`, 'good');
+            const stale = sayIfStale_(res.version);
+            if (!stale) say(`Web app OK (version ${res.version}).`, 'good');
           } catch (err) {
             say(err.message, 'bad');
           }
@@ -248,7 +268,7 @@ function renderConnection(root) {
           try {
             const res = await ping();
             setSettings({ appVersion: String(res.version) });
-            say(`Web app OK (version ${res.version}).`, 'good');
+            if (!sayIfStale_(res.version)) say(`Web app OK (version ${res.version}).`, 'good');
             render();
           } catch (err) {
             say(err.message, 'bad');

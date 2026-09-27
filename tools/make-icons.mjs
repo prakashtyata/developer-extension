@@ -34,13 +34,16 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-function encodePng(size, pixels) {
+function encodePng(size, pixels, opaque) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
   ihdr.writeUInt32BE(size, 4);
   ihdr[8] = 8;
-  ihdr[9] = 6;
-  const raw = Buffer.alloc(size * (size * 4 + 1));
+  // Colour type 2 is truecolour with no alpha channel. The Chrome Web Store
+  // listing icon is safest without one, so icon128 is written opaque.
+  ihdr[9] = opaque ? 2 : 6;
+  const bpp = opaque ? 3 : 4;
+  const raw = Buffer.alloc(size * (size * bpp + 1));
   let o = 0;
   for (let y = 0; y < size; y++) {
     raw[o++] = 0;
@@ -49,7 +52,7 @@ function encodePng(size, pixels) {
       raw[o++] = p[0];
       raw[o++] = p[1];
       raw[o++] = p[2];
-      raw[o++] = p[3];
+      if (!opaque) raw[o++] = p[3];
     }
   }
   return Buffer.concat([
@@ -74,7 +77,7 @@ function distToSegment(px, py, ax, ay, bx, by) {
   return Math.hypot(px - cx, py - cy);
 }
 
-function draw(size) {
+function draw(size, opaque) {
   const s = size;
   const pad = s * 0.16;
   const radius = s * 0.22;
@@ -97,10 +100,10 @@ function draw(size) {
     for (let x = 0; x < s; x++) {
       const px = x + 0.5;
       const py = y + 0.5;
-      let alpha = 0;
+      let alpha = opaque ? 255 : 0;
       const cx = Math.min(Math.max(px, radius), s - radius);
       const cy = Math.min(Math.max(py, radius), s - radius);
-      if (Math.hypot(px - cx, py - cy) <= radius) alpha = 255;
+      if (opaque || Math.hypot(px - cx, py - cy) <= radius) alpha = 255;
 
       let ink = false;
       if (alpha) {
@@ -112,11 +115,13 @@ function draw(size) {
       pixels[y * s + x] = [c[0], c[1], c[2], alpha];
     }
   }
-  return encodePng(s, pixels);
+  return encodePng(s, pixels, opaque);
 }
 
 await mkdir(resolve(root, 'icons'), { recursive: true });
+// icon128 is the store listing icon and is written opaque. The 16 and 48 px
+// icons only appear inside the browser UI, where transparency is expected.
 for (const size of [16, 48, 128]) {
-  await writeFile(resolve(root, `icons/icon${size}.png`), draw(size));
+  await writeFile(resolve(root, `icons/icon${size}.png`), draw(size, size === 128));
   console.log(`icons/icon${size}.png`);
 }

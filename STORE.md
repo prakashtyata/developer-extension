@@ -131,18 +131,37 @@ The review form asks why each permission is needed. Use these answers verbatim.
 
 ## 6. Screenshots
 
-The store wants at least one, at **1280x800** or **640x400**. Capture the real
-side panel at a wide viewport, for example:
+The store wants at least one, at **1280x800** or **640x400**.
+
+These are generated for you:
+
+```
+npm run build
+npm run store:shots
+```
+
+That writes `release/screenshots/*.png` at 1280x800 by rendering the real
+built panel in a browser, so they cannot drift from the actual UI. Each shot is
+checked against the rendered DOM before it is written, and the run fails if two
+shots come out identical — a listing with four copies of one panel looks worse
+than a listing with one honest screenshot.
+
+Upload `1-snippets.png`, `3-checklist.png` and `4-handbook.png`. They are the
+three strongest: they show what the extension is for without needing the reader
+to have a Google Sheet of their own.
+
+`2-snippet-open.png` (a snippet open in the CodeMirror editor) is best effort
+and is skipped when the editor does not render in the headless harness. To
+capture it by hand:
 
 1. `npm run build`, then load the unpacked extension.
-2. Open `chrome://extensions` → enable Developer mode.
-3. Sign in, then open the side panel and widen it to 1280px.
-4. Capture the Snippets list, a snippet open in the editor, the Checklist with
-   some items ticked, and Settings.
-5. Crop to 1280x800 and upload.
+2. Open `chrome://extensions` → enable Developer mode → **Load unpacked**.
+3. Sign in, open the side panel and widen it to 1280px.
+4. Open a snippet, then capture at 1280x800.
 
-The 128x128 icon in `icons/` is the store icon. It must be a square PNG with no
-transparency — re-export it if Chrome's uploader rejects it.
+The 128x128 icon in `icons/` is the store icon. It is generated without an
+alpha channel (`npm run icons`), because the store listing icon is safest as an
+opaque square PNG.
 
 ## 7. If it is rejected
 

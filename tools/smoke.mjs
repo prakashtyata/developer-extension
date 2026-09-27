@@ -134,6 +134,14 @@ check('version is 1-4 integers', /^\d{1,5}(\.\d{1,5}){0,3}$/.test(mf.version), m
 check('side panel needs chrome 114+', Number(mf.minimum_chrome_version) >= 114, mf.minimum_chrome_version);
 for (const size of ['16', '48', '128']) {
   check(`icon ${size} declared`, !!mf.icons[size], 'missing');
+  if (mf.icons[size]) {
+    const png = readFileSync(new URL(`../${mf.icons[size]}`, import.meta.url));
+    check(`icon ${size} is a real png`, png.subarray(1, 4).toString('ascii') === 'PNG');
+    // IHDR colour type lives at byte 25: 2 is truecolour, 6 is truecolour+alpha.
+    if (size === '128') {
+      check('store icon has no alpha channel', png[25] === 2, `colour type ${png[25]} (6 means alpha)`);
+    }
+  }
 }
 check('action has an icon', !!(mf.action && mf.action.default_icon && mf.action.default_icon['16']), 'toolbar button would have no icon');
 check('no remote code patterns', !/content_security_policy[\s\S]*unsafe-eval/.test(JSON.stringify(mf)) && !mf.content_security_policy, 'explicit CSP present, review it');

@@ -48,7 +48,7 @@ const installFetch = (win, { rejectItemIds = [] } = {}) => {
         text: async () => JSON.stringify({ ok: false, error: 'PROGRESS_ARGS_REQUIRED' })
       };
     }
-    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true, version: 4, row: 2 }) };
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true, version: 5, row: 2 }) };
   };
   return calls;
 };
@@ -122,7 +122,11 @@ await new Promise((r) => setTimeout(r, 700));
 console.log('boot');
 check('no load-time error', errors.length === 0, errors.map((e) => e.message).join(' | '));
 check('snippets panel rendered', $('#panel-snippets').children.length > 0, `${$('#panel-snippets').children.length} children`);
-check('snippets locked without a key', !!$('.lock'), 'no .lock element');
+check('snippets locked without a sign-in', !!$('.lock'), 'no .lock element');
+check('lock screen asks for a name, not a key', !$('.lock').textContent.includes('access key'), $('.lock').textContent.slice(0, 80));
+check('lock screen has both fields', !!$('.lock input[type="text"]') && !!$('.lock input[type="password"]'),
+  `text=${!!$('.lock input[type="text"]')} password=${!!$('.lock input[type="password"]')}`);
+check('lock screen has a sign-in button', $('.lock').textContent.includes('Sign in'), $('.lock').textContent.slice(0, 60));
 check('header site line populated', $('#site-line').textContent.includes('example.com'), $('#site-line').textContent);
 check('checklist panel hidden initially', isHidden($('#panel-checklist')));
 
@@ -170,7 +174,7 @@ check('step 3 has three action buttons', body().querySelectorAll('.btn-row butto
 check('status list has 5 rows', body().querySelectorAll('.status-list > div').length === 5,
   `${body().querySelectorAll('.status-list > div').length} rows`);
 check('step 3 test/seed/sync buttons', ['Test connection', 'Create tabs & seed', 'Sync now'].every((t) => body().textContent.includes(t)));
-check('step 3 offers first admin key', body().textContent.includes('Create first admin key'));
+check('step 3 has no first-admin-key bootstrap', !body().textContent.includes('Create first admin key'));
 
 const backBtn = () => body().querySelector('.step-nav .step-back');
 backBtn().click();
@@ -239,14 +243,14 @@ const seededState = {
   settings: {
     sheetId: '1SheetIdGoesHere0000000',
     webAppUrl: 'https://script.google.com/macros/s/AKfy/exec',
-    appVersion: '3',
+    appVersion: '5',
     setupDone: true,
     autoSync: true,
     lastSyncAt: '2026-09-26T10:00:00.000Z',
     lastSyncOk: true,
     lastError: ''
   },
-  session: { keyId: 'u1', label: 'Me', role: 'admin', key: 'wpd_test' },
+  session: { userId: 'u1', name: 'Me', password: 'pw1', role: 'admin' },
   sites: [
     { row: 2, host: 'example.com', label: 'example.com', added: '2026-09-01T00:00:00.000Z', lastSeen: '2026-09-26T00:00:00.000Z' },
     { row: 3, host: 'shop.test', label: 'Shop', added: '2026-09-02T00:00:00.000Z', lastSeen: '2026-09-25T00:00:00.000Z' }
@@ -568,7 +572,7 @@ check('2: drawer has 5 section tabs', all2('.drawer-tab').length === 5, `${all2(
 click2(all2('.drawer-tab')[1]);
 await wait2(250);
 check('2: access shows session', q2('#drawer-body').textContent.includes('Sign out'));
-check('2: first admin block hidden for admin', !q2('#drawer-body').textContent.includes('Create first admin key'));
+check('2: first admin block gone for everyone', !q2('#drawer-body').textContent.includes('Create first admin key'));
 check('2: admin gets People management', q2('#drawer-body').textContent.includes('People'), q2('#drawer-body').textContent.replace(/\s+/g, ' ').slice(0, 120));
 click2(all2('.drawer-tab')[2]);
 await wait2(300);
@@ -582,7 +586,7 @@ check('2: site tallies listed', /\d+\s*\/\s*\d+/.test(q2('#drawer-body').textCon
 console.log('2: editor role (read-only approvals)');
 const dom3 = makeDom({
   ...JSON.parse(JSON.stringify(seededState)),
-  session: { keyId: 'u2', label: 'Ed', role: 'editor', key: 'wpd_test2' }
+  session: { userId: 'u2', name: 'Ed', password: 'pw2', role: 'editor' }
 });
 const errors3 = dom3.errorLog;
 await new Promise((r) => setTimeout(r, 800));

@@ -2,8 +2,7 @@
  * WP Dev Pad - Google Apps Script web app.
  *
  * The only writer for the spreadsheet. The extension reads with the public
- * gviz CSV endpoint and writes through this script, which is also where keys
- * are verified and where editor changes wait for admin approval.
+ * gviz CSV endpoint and writes through this script, which is also where sign-in\n * credentials are checked and where editor changes wait for admin approval.
  *
  * Deploy: Deploy > New deployment > Web app
  *   Execute as: Me
@@ -13,7 +12,7 @@
  * body and answers with { ok: true, ... } or { ok: false, error: '...' }.
  */
 
-var VERSION = 4;
+var VERSION = 5;
 
 var TABS = {
   Snippets: ['id', 'title', 'language', 'category', 'description', 'code', 'tags', 'updated'],
@@ -21,15 +20,12 @@ var TABS = {
   Handbook: ['id', 'section', 'title', 'content'],
   Progress: ['site', 'itemId', 'done', 'note', 'updated'],
   Sites: ['host', 'label', 'added', 'lastSeen'],
-  Users: ['keyId', 'label', 'role', 'keyHash', 'createdAt', 'active', 'lastSeen'],
+  Users: ['userId', 'name', 'password', 'role', 'createdAt', 'active', 'lastSeen'],
   Pending: ['changeId', 'op', 'tab', 'row', 'payload', 'requestedBy', 'requestedAt', 'status', 'decidedBy', 'decidedAt', 'reason']
 };
 
-var KEYS = 'abcdefghijkmnpqrstuvwxyz23456789';
-
 var ACTIONS = {
   ping: fnPing,
-  bootstrap: fnBootstrap,
   authenticate: fnAuthenticate,
   readTab: fnReadTab,
   setup: fnSetup,
@@ -142,44 +138,40 @@ function nowIso_() {
 
 /* ---------------------------------------------------------------------- auth */
 
-function sha256_(text) {
-  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8);
-  return bytes
-    .map(function (b) {
-      var v = b & 0xff;
-      return ('0' + v.toString(16)).slice(-2);
-    })
-    .join('');
+function newUserId_() {
+  return 'u_' + Utilities.getUuid().split('-')[0];
 }
 
-function generateKey_() {
-  var out = '';
-  var raw = Utilities.getUuid().replace(/-/g, '');
-  for (var i = 0; i < 32; i++) {
-    out += KEYS.charAt(parseInt(raw.substr(i, 2), 16) % KEYS.length);
-  }
-  return 'wpd_' + out;
-}
-
-function findUserRow_(sh, key) {
-  var hash = sha256_(key);
+/**
+ * Credentials are a name and a password typed by the user, both stored in plain
+ * text on the Users tab. There is no key to generate, copy or paste, and no
+ * separate verification step: matching the row is the whole check.
+ */
+function findUserRow_(sh, name, password) {
+  var want = String(name || '').trim().toLowerCase();
+  var pass = String(password == null ? '' : password);
+  if (!want) return 0;
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return 0;
   var cols = cols_(sh);
-  var hashCol = indexOf_(cols, 'keyHash') + 1;
+  var nameCol = indexOf_(cols, 'name') + 1;
+  var passCol = indexOf_(cols, 'password') + 1;
   var activeCol = indexOf_(cols, 'active') + 1;
   var values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
   for (var i = 0; i < values.length; i++) {
-    if (String(values[i][hashCol - 1]) !== hash) continue;
-    if (activeCol > 0 && String(values[i][activeCol - 1]).toUpperCase() === 'FALSE') return 0;
+    if (String(values[i][nameCol - 1]).trim().toLowerCase() !== want) continue;
+    // A blank password cell means the row is not set up to sign in yet.
+    if (passCol > 0 && String(values[i][passCol - 1]) !== pass) continue;
+    if (activeCol > 0 && String(values[i][activeCol - 1]).trim().toUpperCase() === 'FALSE') return 0;
     return i + 2;
   }
   return 0;
 }
 
 function user_(p) {
-  var key = String((p && p.key) || '').trim();
-  if (!key) return null;
+  var name = String((p && p.name) || '').trim();
+  var password = (p && p.password) != null ? String(p.password) : '';
+  if (!name) return null;
   var sh;
   try {
     sh = ss_(p).getSheetByName('Users');
@@ -187,7 +179,7 @@ function user_(p) {
     return null;
   }
   if (!sh) return null;
-  var row = findUserRow_(sh, key);
+  var row = findUserRow_(sh, name, password);
   if (!row) return null;
   var cols = cols_(sh);
   var values = sh.getRange(row, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -196,12 +188,12 @@ function user_(p) {
     data[c] = String(values[i]);
   });
   sh.getRange(row, indexOf_(cols, 'lastSeen') + 1).setValue(nowIso_());
-  return { row: row, keyId: data.keyId, label: data.label, role: data.role };
+  return { row: row, userId: data.userId, name: data.name, role: data.role };
 }
 
 function requireUser_(p) {
   var user = user_(p);
-  if (!user) throw new Error('INVALID_KEY');
+  if (!user) throw new Error('INVALID_CREDENTIALS');
   return user;
 }
 
@@ -246,7 +238,7 @@ function removeBlankDefaults_(ss) {
 
 function fnSetup(p) {
   var ss = ss_(p);
-  // First run has no keys yet, so setup is open. Once any key exists it is a
+  // First run has no users yet, so setup is open. Once any user exists it is a
   // privileged operation and must present one.
   var users = ss.getSheetByName('Users');
   if (users && users.getLastRow() > 1) requireUser_(p);
@@ -269,81 +261,74 @@ function fnSetup(p) {
   return { version: VERSION, created: created };
 }
 
-function fnBootstrap(p) {
-  var ss = ss_(p);
-  var users = ss.getSheetByName('Users');
-  if (!users) users = ensureTab_(ss, 'Users', TABS.Users).sh;
-  var cols = cols_(users);
-  var lastRow = users.getLastRow();
-  if (lastRow > 1) {
-    var roleCol = indexOf_(cols, 'role');
-    var rows = users.getRange(2, 1, lastRow - 1, users.getLastColumn()).getValues();
-    for (var i = 0; i < rows.length; i++) {
-      if (String(rows[i][roleCol]) === 'admin') throw new Error('ALREADY_BOOTSTRAPPED');
-    }
-  }
-
-  // A brand new sheet gets the whole structure in one go.
-  if (!ss.getSheetByName('Snippets')) fnSetup(p);
-
-  var key = generateKey_();
-  var keyId = 'u_' + Utilities.getUuid().split('-')[0];
-  appendRow_(users, [keyId, p.label || 'Admin', 'admin', sha256_(key), nowIso_(), 'TRUE', '']);
-  return { key: key, keyId: keyId, version: VERSION };
-}
-
 function fnPing() {
   return { version: VERSION };
 }
 
 function fnAuthenticate(p) {
   var user = user_(p);
-  if (!user) return { ok: false, error: 'INVALID_KEY' };
-  return { keyId: user.keyId, label: user.label, role: user.role };
+  if (!user) return { ok: false, error: 'INVALID_CREDENTIALS' };
+  return { userId: user.userId, name: user.name, role: user.role };
 }
 
 function fnListUsers(p) {
   requireAdmin_(p);
   var sh = tab_(ss_(p), 'Users');
   var data = readAll_(sh);
-  var hashCol = indexOf_(data.cols, 'keyHash');
+  // Blank the password column: the admin already knows the passwords, and the
+  // client has no use for them.
+  var pwCol = indexOf_(data.cols, 'password');
   var rows = data.rows.map(function (r) {
-    return hashCol >= 0 ? r.slice(0, hashCol).concat(['']).concat(r.slice(hashCol + 1)) : r;
+    return pwCol >= 0 ? r.slice(0, pwCol).concat(['']).concat(r.slice(pwCol + 1)) : r;
   });
   return { cols: data.cols, rows: rows };
 }
 
-function fnManageUser(p) {
-  requireAdmin_(p);
-  var sh = tab_(ss_(p), 'Users');
-  var cols = cols_(sh);
-  // The sub-action arrives as userAction. Accept a bare action= too, but never
-  // treat the dispatcher key itself as the sub-action.
-  var action = String(p.userAction || (p.action && p.action !== 'manageUser' ? p.action : '') || '');
-  var keyId = String(p.keyId || '');
-
-  if (action === 'add') {
-    var label = String(p.label || '').trim();
-    var role = p.role === 'admin' ? 'admin' : 'editor';
-    if (!label) throw new Error('LABEL_REQUIRED');
-    var key = generateKey_();
-    appendRow_(sh, ['u_' + Utilities.getUuid().split('-')[0], label, role, sha256_(key), nowIso_(), 'TRUE', '']);
-    return { key: key, label: label, role: role };
+  function fnManageUser(p) {
+    requireAdmin_(p);
+    var sh = tab_(ss_(p), 'Users');
+    var cols = cols_(sh);
+    // The sub-action arrives as userAction. Accept a bare action= too, but never
+    // treat the dispatcher key itself as the sub-action.
+    var action = String(p.userAction || (p.action && p.action !== 'manageUser' ? p.action : '') || '');
+    var userId = String(p.userId || '');
+  
+    if (action === 'add') {
+      var name = String(p.name || '').trim();
+      var password = String(p.password == null ? '' : p.password);
+      var role = p.role === 'admin' ? 'admin' : 'editor';
+      if (!name) throw new Error('NAME_REQUIRED');
+      if (!password) throw new Error('PASSWORD_REQUIRED');
+      var id = newUserId_();
+      appendRow_(sh, [id, name, password, role, nowIso_(), 'TRUE', '']);
+      return { userId: id, name: name, role: role };
+    }
+  
+    var row = findRow_(sh, userId);
+    if (!row) throw new Error('USER_NOT_FOUND');
+  
+    if (action === 'setRole') {
+      sh.getRange(row, indexOf_(cols, 'role') + 1).setValue(p.role === 'admin' ? 'admin' : 'editor');
+      return { userId: userId, role: p.role };
+    }
+    if (action === 'setPassword') {
+      var pw = String(p.password == null ? '' : p.password);
+      if (!pw) throw new Error('PASSWORD_REQUIRED');
+      sh.getRange(row, indexOf_(cols, 'password') + 1).setValue(pw);
+      return { userId: userId };
+    }
+    if (action === 'rename') {
+      var to = String(p.name || '').trim();
+      if (!to) throw new Error('NAME_REQUIRED');
+      sh.getRange(row, indexOf_(cols, 'name') + 1).setValue(to);
+      return { userId: userId, name: to };
+    }
+    if (action === 'revoke' || action === 'restore') {
+      sh.getRange(row, indexOf_(cols, 'active') + 1).setValue(action === 'revoke' ? 'FALSE' : 'TRUE');
+      return { userId: userId, active: action !== 'revoke' };
+    }
+    throw new Error('UNKNOWN_USER_ACTION');
   }
-
-  var row = findRow_(sh, keyId);
-  if (!row) throw new Error('USER_NOT_FOUND');
-
-  if (action === 'setRole') {
-    sh.getRange(row, indexOf_(cols, 'role') + 1).setValue(p.role === 'admin' ? 'admin' : 'editor');
-    return { keyId: keyId, role: p.role };
-  }
-  if (action === 'revoke' || action === 'restore') {
-    sh.getRange(row, indexOf_(cols, 'active') + 1).setValue(action === 'revoke' ? 'FALSE' : 'TRUE');
-    return { keyId: keyId, active: action !== 'revoke' };
-  }
-  throw new Error('UNKNOWN_USER_ACTION');
-}
 
 /* --------------------------------------------------------------------- reads */
 
@@ -430,7 +415,8 @@ function fnBulkProgress(p) {
   for (var i = 0; i < items.length; i++) {
     fnSetProgress({
       sheetId: p.sheetId,
-      key: p.key,
+      name: p.name,
+      password: p.password,
       host: p.host,
       itemId: items[i].itemId,
       done: items[i].done,

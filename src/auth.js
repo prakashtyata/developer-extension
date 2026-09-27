@@ -4,15 +4,20 @@ import { nowIso, toast } from './util.js';
 
 export { isSignedIn, isAdmin };
 
-export async function authenticate(rawKey) {
-  const key = String(rawKey || '').trim();
-  if (!key) throw new Error('Enter an access key.');
+/**
+ * Sign-in is a name and a password that the admin typed into the Users tab.
+ * There is no key to generate or paste, and no second verification step.
+ */
+export async function authenticate(rawName, rawPassword) {
+  const name = String(rawName || '').trim();
+  const password = String(rawPassword == null ? '' : rawPassword);
+  if (!name || !password) throw new Error('Enter your name and password.');
 
-  const res = await callWebApp('authenticate', { key });
+  const res = await callWebApp('authenticate', { name, password });
   const session = {
-    key,
-    keyId: res.keyId,
-    label: res.label,
+    name,
+    password,
+    userId: res.userId,
     role: res.role,
     since: nowIso()
   };
@@ -28,7 +33,7 @@ export function signOut() {
 
 export function requireSignedIn() {
   if (!isSignedIn()) {
-    toast('Enter your access key first.', 'error');
+    toast('Enter your name and password first.', 'error');
     return false;
   }
   return true;
@@ -40,11 +45,6 @@ export function requireAdmin() {
     return false;
   }
   return true;
-}
-
-export async function bootstrapAdmin() {
-  const res = await callWebApp('bootstrap', {});
-  return res;
 }
 
 export async function listUsers() {

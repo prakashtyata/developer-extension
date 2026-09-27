@@ -1,6 +1,6 @@
 import { S, saveNow, setSettings, isConfigured, isSignedIn, isAdmin, removeSite, resetLocalData, siteTally, upsertSite } from '../store.js';
 import { ping, setupSheet, readAll, flushOutbox, queueSite, outboxSummary } from '../sheet.js';
-import { authenticate, signOut, bootstrapAdmin } from '../auth.js';
+import { authenticate, signOut } from '../auth.js';
 import { render as renderQueue } from './queue.js';
 import { render as renderUsers } from './users.js';
 import { el, clear, downloadJson, pickFile, toast, relTime, pct, debounce, normalizeHost } from '../util.js';
@@ -171,7 +171,7 @@ function renderSteps(host) {
   bodies.seed.append(
     el('div', { class: 'step-nav' },
       el('button', { class: 'step-back', text: 'Back', onclick: () => goto(step - 1, 'back') }),
-      el('button', { class: 'btn', text: 'Create first admin key', onclick: () => openSection('access') })
+      el('button', { class: 'btn', text: 'Go to sign in', onclick: () => openSection('access') })
     )
   );
 
@@ -301,7 +301,7 @@ function renderAccess(root) {
     root.append(
       el('div', { class: 'session' },
         el('div', {},
-          el('strong', { text: S.session.label }),
+          el('strong', { text: S.session.name }),
           el('span', { class: `chip chip-${S.session.role}`, text: S.session.role === 'admin' ? 'Admin' : 'Editor' })
         ),
         el('p', { class: 'muted tiny', text: S.session.role === 'admin'
@@ -321,47 +321,21 @@ function renderAccess(root) {
       )
     );
   } else {
-    const input = el('input', { class: 'input', type: 'password', placeholder: 'wpd_...', autocomplete: 'off', spellcheck: false });
+    const nameInput = el('input', { class: 'input', type: 'text', placeholder: 'Your name', autocomplete: 'username', spellcheck: false });
+    const passInput = el('input', { class: 'input', type: 'password', placeholder: 'Password', autocomplete: 'current-password', spellcheck: false });
     root.append(
       el('h3', { text: 'Sign in' }),
-      field('Access key', input),
+      field('Name', nameInput),
+      field('Password', passInput),
       el('div', { class: 'btn-row' },
         el('button', {
           class: 'btn btn-primary',
-          text: 'Unlock',
+          text: 'Sign in',
           onclick: async () => {
-            say('Checking key...');
+            say('Signing in...');
             try {
-              const session = await authenticate(input.value.trim());
-              say(`Signed in as ${session.label} (${session.role}).`, 'good');
-              document.dispatchEvent(new CustomEvent('devpad:changed'));
-              render();
-            } catch (err) {
-              say(err.message, 'bad');
-            }
-          }
-        })
-      )
-    );
-  }
-
-  if (!isSignedIn()) {
-    root.append(
-      el('h3', { text: 'First admin key' }),
-      el('p', { class: 'muted tiny', text: 'Only works while the Users tab has no admin. Creates the sheet, the tabs and an admin key in one step if the sheet is still empty.' }),
-      el('div', { class: 'btn-row' },
-        el('button', {
-          class: 'btn',
-          text: 'Create first admin key',
-          onclick: async () => {
-            say('Creating...');
-            try {
-              const res = await bootstrapAdmin();
-              clear(reveal);
-              reveal.append(
-                el('p', { class: 'muted tiny', text: 'Shown once. Store it now - the sheet only keeps a hash.' }),
-                el('div', { class: 'notice notice-good' }, el('code', { class: 'keycode', text: res.key }))
-              );
+              const session = await authenticate(nameInput.value.trim(), passInput.value);
+              say(`Signed in as ${session.name} (${session.role}).`, 'good');
               document.dispatchEvent(new CustomEvent('devpad:changed'));
               render();
             } catch (err) {
@@ -370,7 +344,10 @@ function renderAccess(root) {
           }
         })
       ),
-      reveal
+      el('p', {
+        class: 'muted tiny',
+        text: 'No account yet? An admin adds a row to the Users tab on the spreadsheet with your name, a password and a role of admin or editor. Nothing else is needed.'
+      })
     );
   }
 
@@ -381,8 +358,6 @@ function renderAccess(root) {
     renderUsers(usersHost);
   }
 }
-
-const reveal = el('div');
 
 function renderSites(root) {
   if (!S.sites.length) {

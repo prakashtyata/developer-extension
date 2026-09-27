@@ -18,7 +18,7 @@ export const pendingCount = (status = 'Pending') =>
 export function myPending(tab) {
   if (!S.session) return [];
   return S.pending.filter(
-    (c) => c.status === 'Pending' && c.requestedBy === S.session.label && (!tab || c.tab === tab)
+    (c) => c.status === 'Pending' && c.requestedBy === S.session.name && (!tab || c.tab === tab)
   );
 }
 

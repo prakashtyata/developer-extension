@@ -1,7 +1,8 @@
 import { S, isSignedIn, isAdmin } from '../store.js';
 import { el, clear, toast } from '../util.js';
 
-let keyInput = null;
+let nameInput = null;
+let passInput = null;
 let statusNode = null;
 let busy = false;
 
@@ -13,15 +14,26 @@ export function renderLock(container) {
   const box = el('div', { class: 'lock' });
   box.append(
     el('div', { class: 'lock-icon', text: '\u{1F512}' }),
-    el('h2', { text: 'Snippets are locked' }),
-    el('p', { class: 'muted', text: 'Enter your access key to view, copy and edit the snippet library.' })
+    el('h2', { text: 'Sign in' }),
+    el('p', { class: 'muted', text: 'Use the name and password an admin added for you on the Users tab.' })
   );
 
-  keyInput = el('input', {
+  nameInput = el('input', {
+    class: 'input',
+    type: 'text',
+    placeholder: 'Your name',
+    autocomplete: 'username',
+    spellcheck: false,
+    onkeydown: (e) => {
+      if (e.key === 'Enter') submit();
+    }
+  });
+
+  passInput = el('input', {
     class: 'input',
     type: 'password',
-    placeholder: 'wpd_...',
-    autocomplete: 'off',
+    placeholder: 'Password',
+    autocomplete: 'current-password',
     spellcheck: false,
     onkeydown: (e) => {
       if (e.key === 'Enter') submit();
@@ -32,45 +44,51 @@ export function renderLock(container) {
 
   const submit = async () => {
     if (busy) return;
-    const key = keyInput.value.trim();
-    if (!key) return;
+    const name = nameInput.value.trim();
+    const password = passInput.value;
+    if (!name || !password) {
+      statusNode.textContent = 'Enter your name and password.';
+      statusNode.className = 'lock-status lock-status-error';
+      return;
+    }
     busy = true;
-    statusNode.textContent = 'Checking key...';
+    statusNode.textContent = 'Signing in...';
     statusNode.className = 'lock-status';
     const { authenticate } = await import('../auth.js');
     const { onSignedIn } = await import('../main.js');
     try {
-      await authenticate(key);
+      await authenticate(name, password);
       statusNode.textContent = '';
       toast('Signed in.', 'success');
       await onSignedIn();
     } catch (err) {
       statusNode.textContent = err.message;
       statusNode.className = 'lock-status lock-status-error';
-      keyInput.select();
+      passInput.select();
     } finally {
       busy = false;
     }
   };
 
   box.append(
-    keyInput,
-    el('button', { class: 'btn btn-primary', text: 'Unlock', onclick: submit }),
+    nameInput,
+    passInput,
+    el('button', { class: 'btn btn-primary', text: 'Sign in', onclick: submit }),
     statusNode
   );
 
   const help = el('details', { class: 'lock-help' });
   help.append(
-    el('summary', { text: 'No key yet?' }),
+    el('summary', { text: 'No access yet?' }),
     el('p', {
       class: 'muted',
-      text: 'An admin creates keys from Settings > Access. The first admin key is created by the "Create first admin key" button in Settings.'
+      text: 'Ask an admin to add a row to the Users tab on the spreadsheet with your name, a password and role=admin or editor.'
     })
   );
   box.append(help);
 
   container.append(box);
-  setTimeout(() => keyInput && keyInput.focus(), 30);
+  setTimeout(() => nameInput && nameInput.focus(), 30);
 }
 
 export function editorHint() {
@@ -82,6 +100,6 @@ export function currentUserChip() {
   if (!S.session) return null;
   return el('span', {
     class: `chip chip-${S.session.role}`,
-    text: `${S.session.label} - ${S.session.role === 'admin' ? 'Admin' : 'Editor'}`
+    text: `${S.session.name} - ${S.session.role === 'admin' ? 'Admin' : 'Editor'}`
   });
 }

@@ -2,13 +2,13 @@
 
 A Chrome MV3 side panel with three tabs — **Snippets**, **Checklist**, **Handbook** — backed by a single Google Sheet.
 Reads use the public gviz CSV endpoint (no OAuth, no API key); writes go through one Apps Script web app, which is
-also where access keys are checked and where editor changes wait for admin approval.
+also where sign-in credentials are checked and where editor changes wait for admin approval.
 
 ## What it does
 
 - **Snippets** — a shared, searchable code library with syntax highlighting (CodeMirror 6), language/category/tag
   filters, and copy/edit/delete. Search and list share the tab; opening a snippet slides the detail in to take over
-  the full tab, with a back button in its header. The whole tab is locked until you enter an access key.
+  the full tab, with a back button in its header. The whole tab is locked until you sign in with your name and password.
 - **Checklist** — items grouped by usage (Pre-Deploy, Theme, SEO, Security, Go-Live, …) with a per-site tally.
   The panel detects the site in the active tab and keeps a separate done/notes record for each one.
 - **Handbook** — WordPress developer notes in markdown, with highlighted code blocks, section tree and full-text search.
@@ -57,13 +57,24 @@ Open the side panel → the Settings drawer opens on **Connection**, which walks
 | --- | --- | --- |
 | 1 | **Google Sheet** | Paste the Sheet ID or full URL (the app extracts the ID) |
 | 2 | **Web app** | Paste the `/exec` URL from your deployment |
-| 3 | **Test and seed** | `Test connection` pings the web app and shows its version (`Web app OK (version 4)`), `Create tabs & seed` creates the 7 tabs and writes starter snippets, checklist and handbook, `Sync now` reads all tabs into local storage |
+| 3 | **Test and seed** | `Test connection` pings the web app and shows its version (`Web app OK (version 5)`), `Create tabs & seed` creates the 7 tabs and writes starter snippets, checklist and handbook, `Sync now` reads all tabs into local storage |
 
 `Next` and `Back` move between steps; the dots at the top show where you are.
 Once the sheet is seeded the section switches to a single scrollable form.
 
-Then **Access → Create first admin key**. The key is shown **once** — the sheet only keeps its SHA-256 hash.
-Use that key to sign in, then create editor keys for other people in **Access → People**.
+Then add yourself to the **Users** tab. Either type a row straight into the spreadsheet:
+
+| `userId` | `name` | `password` | `role` | `createdAt` | `active` | `lastSeen` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `u_1a2b3c4d` | Rafi | `sunny-day` | `admin` | | `TRUE` | |
+
+or, once you are signed in, use **Settings → People** to add people with a name and password.
+`userId` can be anything unique, the name is matched case-insensitively, `active` must be `TRUE`
+to sign in, and `role` is `admin` (full access) or `editor` (changes wait for approval).
+
+Sign in with that name and password. There is no key to generate, copy or paste, and no second
+verification step. To let someone in again after a password change, edit that row or use
+**People → Set password**. Setting `active` to `FALSE` blocks sign-in without deleting the row.
 
 ## Spreadsheet layout
 
@@ -74,7 +85,7 @@ Use that key to sign in, then create editor keys for other people in **Access �
 | `Handbook` | `id, section, title, content` | admin, or approved changes |
 | `Progress` | `site, itemId, done, note, updated` | any signed-in key, immediately |
 | `Sites` | `host, label, added, lastSeen` | any signed-in key, immediately |
-| `Users` | `keyId, label, role, keyHash, createdAt, active, lastSeen` | web app only |
+| `Users` | `userId, name, password, role, createdAt, active, lastSeen` | web app only |
 | `Pending` | `changeId, op, tab, row, payload, requestedBy, requestedAt, status, decidedBy, decidedAt, reason` | web app only |
 
 `Progress` is keyed on `site + itemId` (not on the item text), so renaming a checklist item never orphans a tally.
@@ -88,7 +99,7 @@ fills tabs that are still empty. Checklist item ids are load-bearing: `Progress`
 
 ## Web app actions
 
-`ping` · `bootstrap` · `authenticate` · `readTab` · `setup` · `appendRow` · `updateRow` · `deleteRow` ·
+`ping` · `authenticate` · `readTab` · `setup` · `appendRow` · `updateRow` · `deleteRow` ·
 `setProgress` · `bulkProgress` · `registerSite` · `deleteSite` · `submitChange` · `listPending` ·
 `approveChange` · `rejectChange` · `listUsers` · `manageUser`
 

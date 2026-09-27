@@ -106,8 +106,8 @@ function renderHeader() {
     roleChip.append(
       el('span', {
         class: `chip chip-${S.session.role}`,
-        text: S.session.label,
-        title: `${S.session.label} (${S.session.role})`
+        text: S.session.name,
+        title: `${S.session.name} (${S.session.role})`
       }),
       el('span', { class: 'muted tiny', text: S.session.role === 'admin' ? 'admin' : 'editor' })
     );

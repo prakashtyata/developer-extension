@@ -82,7 +82,7 @@ const CHROME_STUB = `<script>
   var state = {
     version: 1,
     settings: { sheetId: 'probe', webAppUrl: 'https://example.invalid/exec', setupDone: true, autoSync: false },
-    session: { keyId: 'k1', role: 'admin', label: 'Probe', key: 'wpd_probe' },
+    session: { userId: 'k1', role: 'admin', name: 'Probe', password: 'pw' },
     activeHost: 'example.com',
     sites: [{ host: 'example.com', label: 'Example', added: now, lastSeen: now }],
     snippets: snippets,

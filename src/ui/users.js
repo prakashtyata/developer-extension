@@ -1,26 +1,6 @@
 import { isAdmin, listUsers, manageUser } from '../auth.js';
 import { el, clear, fmtDate, toast } from '../util.js';
 
-function keyReveal(key, label) {
-  const box = el('div', { class: 'notice notice-good' },
-    el('strong', { text: `Key for ${label}: ` }),
-    el('code', { class: 'keycode', text: key })
-  );
-  const copyBtn = el('button', {
-    class: 'btn btn-sm',
-    text: 'Copy key',
-    onclick: async () => {
-      try {
-        await navigator.clipboard.writeText(key);
-        toast('Key copied.', 'success');
-      } catch {
-        toast('Copy failed - select the key manually.', 'error');
-      }
-    }
-  });
-  return el('div', {}, el('p', { class: 'muted tiny', text: 'Shown once. It is stored in the sheet as a hash and cannot be recovered.' }), box, copyBtn);
-}
-
 export function render(root) {
   clear(root);
 
@@ -28,7 +8,7 @@ export function render(root) {
     root.append(
       el('div', { class: 'empty' },
         el('p', { text: 'Admin only.' }),
-        el('p', { class: 'muted', text: 'Only admins can add or revoke access keys.' })
+        el('p', { class: 'muted', text: 'Only admins can add or revoke sign-ins.' })
       )
     );
     return;
@@ -53,8 +33,8 @@ export function render(root) {
         listHost.append(
           el('div', { class: 'user-row' + (active ? '' : ' user-inactive') },
             el('div', {},
-              el('div', {}, el('strong', { text: u.label || u.keyId }), el('span', { class: 'chip chip-role', text: u.role })),
-              el('div', { class: 'muted tiny', text: `added ${fmtDate(u.createdAt)}${u.lastSeen ? ` - last seen ${fmtDate(u.lastSeen)}` : ' - never used'}` })
+              el('div', {}, el('strong', { text: u.name || u.userId }), el('span', { class: 'chip chip-role', text: u.role })),
+              el('div', { class: 'muted tiny', text: `added ${fmtDate(u.createdAt)}${u.lastSeen ? ` - last seen ${fmtDate(u.lastSeen)}` : ' - never signed in'}` })
             ),
             el('div', { class: 'row-actions' },
               el('button', {
@@ -62,9 +42,27 @@ export function render(root) {
                 text: u.role === 'admin' ? 'Make editor' : 'Make admin',
                 onclick: async () => {
                   try {
-                    await manageUser('setRole', { keyId: u.keyId, role: u.role === 'admin' ? 'editor' : 'admin' });
+                    await manageUser('setRole', { userId: u.userId, role: u.role === 'admin' ? 'editor' : 'admin' });
                     toast('Role updated.', 'success');
                     rerender();
+                  } catch (err) {
+                    toast(err.message, 'error');
+                  }
+                }
+              }),
+              el('button', {
+                class: 'btn btn-sm',
+                text: 'Set password',
+                onclick: async () => {
+                  const next = window.prompt(`New password for ${u.name || u.userId}:`);
+                  if (next == null) return;
+                  if (!next) {
+                    toast('Password cannot be empty.', 'error');
+                    return;
+                  }
+                  try {
+                    await manageUser('setPassword', { userId: u.userId, password: next });
+                    toast('Password updated.', 'success');
                   } catch (err) {
                     toast(err.message, 'error');
                   }
@@ -75,8 +73,8 @@ export function render(root) {
                 text: active ? 'Revoke' : 'Restore',
                 onclick: async () => {
                   try {
-                    await manageUser(active ? 'revoke' : 'restore', { keyId: u.keyId });
-                    toast(active ? 'Key revoked.' : 'Key restored.', 'success');
+                    await manageUser(active ? 'revoke' : 'restore', { userId: u.userId });
+                    toast(active ? 'Access revoked.' : 'Access restored.', 'success');
                     rerender();
                   } catch (err) {
                     toast(err.message, 'error');
@@ -93,43 +91,44 @@ export function render(root) {
     }
   };
 
-  const labelInput = el('input', { class: 'input input-sm', placeholder: 'Name (e.g. Rafi - editor)' });
+  const nameInput = el('input', { class: 'input input-sm', placeholder: 'Name (e.g. Rafi)' });
+  const passInput = el('input', { class: 'input input-sm', type: 'text', placeholder: 'Password', autocomplete: 'off' });
   const roleSel = el('select', { class: 'input input-sm' },
     el('option', { value: 'editor', text: 'Editor (needs approval)' }),
     el('option', { value: 'admin', text: 'Admin (full access)' })
   );
-  const created = el('div');
 
   const form = el('form', {
     class: 'form-row',
     onsubmit: async (e) => {
       e.preventDefault();
-      const label = labelInput.value.trim();
-      if (!label) {
-        toast('Give the person a name.', 'error');
+      const name = nameInput.value.trim();
+      const password = passInput.value;
+      if (!name || !password) {
+        toast('Enter a name and a password.', 'error');
         return;
       }
       try {
-        const res = await manageUser('add', { label, role: roleSel.value });
-        clear(created);
-        created.append(keyReveal(res.key, label));
-        labelInput.value = '';
+        await manageUser('add', { name, password, role: roleSel.value });
+        toast(`${name} can now sign in.`, 'success');
+        nameInput.value = '';
+        passInput.value = '';
         load();
       } catch (err) {
         toast(err.message, 'error');
       }
     }
   },
-    labelInput,
+    nameInput,
+    passInput,
     roleSel,
-    el('button', { class: 'btn btn-primary btn-sm', type: 'submit', text: 'Create key' })
+    el('button', { class: 'btn btn-primary btn-sm', type: 'submit', text: 'Add user' })
   );
 
   root.append(
-    el('h3', { text: 'Access keys' }),
-    el('p', { class: 'muted tiny', text: 'Keys are stored as SHA-256 hashes. An editor can do everything except approve; an editor\'s changes to snippets, checklist items and handbook articles are queued until an admin approves them.' }),
+    el('h3', { text: 'People' }),
+    el('p', { class: 'muted tiny', text: 'Add a name and password here, or type a row straight into the Users tab on the spreadsheet - both work. The person signs in with exactly these two values and nothing else. An editor can do everything except approve; an editor\'s changes to snippets, checklist items and handbook articles are queued until an admin approves them.' }),
     form,
-    created,
     el('hr', {}),
     listHost
   );

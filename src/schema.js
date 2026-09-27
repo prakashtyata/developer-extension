@@ -6,7 +6,7 @@ export const TABS = {
   Handbook: ['id', 'section', 'title', 'content'],
   Progress: ['site', 'itemId', 'done', 'note', 'updated'],
   Sites: ['host', 'label', 'added', 'lastSeen'],
-  Users: ['keyId', 'label', 'role', 'keyHash', 'createdAt', 'active', 'lastSeen'],
+  Users: ['userId', 'name', 'password', 'role', 'createdAt', 'active', 'lastSeen'],
   Pending: [
     'changeId',
     'op',
@@ -168,8 +168,9 @@ export const SCHEMA = {
     decode(r) {
       return {
         row: r.__row,
-        keyId: str(r.keyId),
-        label: str(r.label),
+        userId: str(r.userId),
+        name: str(r.name),
+        // listUsers blanks this column; the client never needs the real value.
         role: str(r.role),
         createdAt: str(r.createdAt),
         active: str(r.active).toUpperCase() !== 'FALSE',

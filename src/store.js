@@ -114,7 +114,7 @@ export function setSettings(patch) {
 
 export const isConfigured = () => !!(S.settings.sheetId && S.settings.webAppUrl);
 
-export const isSignedIn = () => !!(S.session && S.session.keyId);
+export const isSignedIn = () => !!(S.session && S.session.userId && S.session.name);
 export const isAdmin = () => isSignedIn() && S.session.role === 'admin';
 
 export function setSession(session) {

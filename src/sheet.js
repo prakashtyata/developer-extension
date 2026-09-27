@@ -13,12 +13,14 @@ const gvizUrl = (sheetId, tab) =>
 export function readableError(msg) {
   const raw = String(msg || '');
   const known = {
-    INVALID_KEY: 'That access key is not valid any more. Sign in again.',
-    NO_KEY: 'Enter your access key first.',
+    INVALID_CREDENTIALS: 'That name and password do not match an active user.',
+    NO_CREDENTIALS: 'Enter your name and password first.',
     ADMIN_REQUIRED: 'Only an admin can do that.',
     PROGRESS_KEY_REQUIRED: 'An older queued change had no site on it. It was dropped - try again.',
     PROGRESS_ARGS_REQUIRED: 'A checklist change was missing its site or item.',
     SHEET_ID_MISSING: 'No spreadsheet is configured yet.',
+    NAME_REQUIRED: 'That name is required.',
+    PASSWORD_REQUIRED: 'That password is required.',
     LABEL_REQUIRED: 'That name is required.',
     HOST_REQUIRED: 'That site is required.'
   };
@@ -52,7 +54,8 @@ export async function callWebApp(action, payload = {}) {
   const body = {
     action,
     sheetId: S.settings.sheetId,
-    key: S.session ? S.session.key : '',
+    name: S.session ? S.session.name : '',
+    password: S.session ? S.session.password : '',
     ...payload
   };
   let res;

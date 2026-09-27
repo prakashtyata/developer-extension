@@ -104,10 +104,23 @@ const gs = readFileSync(new URL('../apps-script.gs', import.meta.url), 'utf8');
 const actionBlock = gs.match(/var ACTIONS = \{([\s\S]*?)\n\};/);
 const actions = actionBlock ? [...actionBlock[1].matchAll(/(\w+):\s*fn\w+/g)].map((m) => m[1]) : [];
 const RESERVED = ['add', 'setRole', 'revoke', 'restore', 'append', 'update', 'delete', 'progress', 'site'];
-check('actions parsed from script', actions.length === 18, actions.join(','));
+check('actions parsed from script', actions.length === 17, actions.join(','));
+check('bootstrap action is gone', !actions.includes('bootstrap'), actions.join(','));
+check('script is version 5', /var VERSION = 5;/.test(gs));
 check('no sub-action shadows the dispatcher', !actions.some((a) => RESERVED.includes(a)),
   actions.filter((a) => RESERVED.includes(a)).join(','));
 check('manageUser reads userAction, not action', /p\.userAction/.test(gs) && /var action = String\(p\.userAction/.test(gs));
+
+console.log('name + password sign-in');
+const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), 'utf8');
+check('Users tab has no key columns', !/keyHash/.test(gs) && !/'keyId'/.test(gs), 'key columns still present');
+check('Users tab stores name and password', /Users: \['userId', 'name', 'password', 'role'/.test(gs));
+check('auth matches on name and password', /findUserRow_\(sh, name, password\)/.test(gs));
+check('no key generation left', !/generateKey_|wpd_/.test(gs), 'key generator still present');
+check('no hashing left', !/sha256_/.test(gs), 'sha256 still present');
+check('client sends name and password', /name: S\.session \? S\.session\.name/.test(src('sheet.js')) && /password: S\.session \? S\.session\.password/.test(src('sheet.js')));
+check('client session has no key field', !/session\.key\b/.test(src('sheet.js') + src('auth.js') + src('store.js')));
+check('client authenticates with name + password', /authenticate\(rawName, rawPassword\)/.test(src('auth.js')));
 check('every action has a function', actions.every((a) => new RegExp(`function fn${a[0].toUpperCase()}${a.slice(1)}\\b`).test(gs)),
   actions.filter((a) => !new RegExp(`function fn${a[0].toUpperCase()}${a.slice(1)}\\b`).test(gs)).join(','));
 check('client sends userAction', /callWebApp\('manageUser', \{ userAction: action/.test(readFileSync(new URL('../src/auth.js', import.meta.url), 'utf8')));

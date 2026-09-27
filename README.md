@@ -17,8 +17,8 @@ also where sign-in credentials are checked and where editor changes wait for adm
 
 | Role | Can do | Needs approval |
 | --- | --- | --- |
-| `admin` | Everything, including approving changes and managing keys | No — writes land immediately |
-| `editor` | Everything except approving or managing keys | Yes, for Snippets, Checklist items and Handbook articles |
+| `admin` | Everything, including approving changes and managing people | No — writes land immediately |
+| `editor` | Everything except approving changes or managing people | Yes, for Snippets, Checklist items and Handbook articles |
 
 Checklist **ticks and notes**, and the site registry, are never queued — they are per-person work tracking, not shared content.
 
@@ -83,8 +83,8 @@ verification step. To let someone in again after a password change, edit that ro
 | `Snippets` | `id, title, language, category, description, code, tags, updated` | admin, or approved changes |
 | `Checklist` | `id, category, item, detail, order` | admin, or approved changes |
 | `Handbook` | `id, section, title, content` | admin, or approved changes |
-| `Progress` | `site, itemId, done, note, updated` | any signed-in key, immediately |
-| `Sites` | `host, label, added, lastSeen` | any signed-in key, immediately |
+| `Progress` | `site, itemId, done, note, updated` | any signed-in user, immediately |
+| `Sites` | `host, label, added, lastSeen` | any signed-in user, immediately |
 | `Users` | `userId, name, password, role, createdAt, active, lastSeen` | web app only |
 | `Pending` | `changeId, op, tab, row, payload, requestedBy, requestedAt, status, decidedBy, decidedAt, reason` | web app only |
 
@@ -111,7 +111,7 @@ neighbouring row.
 
 Everything is local-first. A change updates local storage instantly, is appended to an outbox, then flushed to the
 sheet (700 ms debounce). If the web app is unreachable the strip under the header counts what is waiting. Snippets
-cannot be *fetched* offline because that read is key-gated, but the last authenticated copy stays viewable and
+cannot be *fetched* offline because that read goes through the web app, but the last authenticated copy stays viewable and
 signing out wipes it.
 
 ## When something silently does nothing
@@ -165,7 +165,7 @@ src/
   main.js            boot, tabs, site detection, autosync
   store.js           state shape, chrome.storage.local, merge rules
   sheet.js           gviz reads, web app writes, outbox
-  auth.js            key sign-in and user management
+  auth.js            name/password sign-in and user management
   approval.js        pending queue read/approve/reject
   schema.js          tab columns, encode/decode, language list
   data.js            starter snippets, checklist, handbook
@@ -187,8 +187,39 @@ frame can never leave a view stuck off-screen, and everything is disabled under
 
 ## A note on the security model
 
-The gviz read path requires the sheet to be publicly readable, so `Checklist`, `Handbook`, `Progress` and `Sites`
-are readable by anyone who has the sheet URL. Keying the **write** path is enforced properly (hashed keys, checked
-server side, every call re-verified). Keying the **read** path is only enforced for `Snippets`, which is why that
-tab goes through the web app. If you need the other tabs private too, drop them from `CSV_TABS` in `src/schema.js`
-and route them through `readTab`.
+Please read this before pointing the extension at a real spreadsheet.
+
+**The spreadsheet is the security boundary.** There is no server of ours and
+nothing is proxied through us. What Google can read, an attacker who gets the
+sheet URL can read too.
+
+- **Reads** of `Checklist`, `Handbook`, `Progress` and `Sites` go through Google's
+  public gviz CSV endpoint, which has no authentication at all. It works only
+  because the sheet is shared "Anyone with the link". **Anyone who has the sheet
+  URL can read those four tabs.** That is a property of the CSV read path, not a
+  bug.
+- **`Snippets` is the exception.** It is fetched through the Apps Script web app
+  instead, so the server checks the session before returning it. That is the only
+  read that is actually enforced.
+- **Passwords are stored in plain text in the `Users` tab.** Anyone who can open
+  the sheet can read every team's credentials. Keep the sheet private, share it
+  with named people only, do not reuse passwords from other services, and
+  deactivate a row rather than assuming deleting it revokes access.
+
+If you need the other tabs private as well, drop them from `CSV_TABS` in
+`src/schema.js` and route them through the web app's `readTab` action, which
+does verify the session server side. That is the only real fix, because a URL is
+not a secret.
+
+## Support
+
+- **Bug reports and feature requests:** the GitHub Issues tab on this repository.
+- **How to report one well:** say what you expected, what happened instead, and
+  paste the output of **Settings → Connection → Test connection**. That prints
+  the web app version, which is the first thing worth checking.
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md). Short version: no analytics, no telemetry, no
+third-party requests. Data goes to your spreadsheet and your own Apps Script
+deployment, and nowhere else.

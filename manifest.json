@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "WP Dev Pad",
-  "version": "0.1.0",
-  "description": "Snippets, site checklists and a WordPress handbook, synced to one Google Sheet.",
+  "short_name": "Dev Pad",
+  "version": "1.0.0",
+  "description": "WordPress snippets, site checklists and a handbook, kept in sync with one Google Sheet.",
   "minimum_chrome_version": "114",
   "permissions": ["storage", "sidePanel", "tabs", "clipboardWrite"],
   "host_permissions": ["https://docs.google.com/*", "https://script.google.com/*"],
@@ -10,7 +11,12 @@
     "service_worker": "dist/background.js"
   },
   "action": {
-    "default_title": "Open WP Dev Pad"
+    "default_title": "Open WP Dev Pad",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "side_panel": {
     "default_path": "dist/sidepanel.html"

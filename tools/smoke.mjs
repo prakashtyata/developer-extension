@@ -2,7 +2,9 @@
  * Pure-logic checks for the pieces that do not need Chrome.
  * Run: node tools/smoke.mjs
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { parseCsv, rowsToObjects, readCsv } from '../src/csv.js';import { parseMarkdown, renderInline } from '../src/markdown.js';
 import { TABS, SCHEMA, encodeRows, decodeRows, progressKey, LANGUAGES } from '../src/schema.js';
 import { DEFAULT_SNIPPETS, DEFAULT_CHECKLIST, DEFAULT_HANDBOOK } from '../src/data.js';
@@ -121,6 +123,40 @@ check('no hashing left', !/sha256_/.test(gs), 'sha256 still present');
 check('client sends name and password', /name: S\.session \? S\.session\.name/.test(src('sheet.js')) && /password: S\.session \? S\.session\.password/.test(src('sheet.js')));
 check('client session has no key field', !/session\.key\b/.test(src('sheet.js') + src('auth.js') + src('store.js')));
 check('client authenticates with name + password', /authenticate\(rawName, rawPassword\)/.test(src('auth.js')));
+
+console.log('chrome web store readiness');
+const mf = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+check('manifest v3', mf.manifest_version === 3, String(mf.manifest_version));
+check('name within 45 chars', mf.name.length <= 45, `${mf.name.length}: ${mf.name}`);
+check('description within 132 chars', mf.description.length <= 132, `${mf.description.length}`);
+check('short_name within 12 chars', !mf.short_name || mf.short_name.length <= 12, String(mf.short_name && mf.short_name.length));
+check('version is 1-4 integers', /^\d{1,5}(\.\d{1,5}){0,3}$/.test(mf.version), mf.version);
+check('side panel needs chrome 114+', Number(mf.minimum_chrome_version) >= 114, mf.minimum_chrome_version);
+for (const size of ['16', '48', '128']) {
+  check(`icon ${size} declared`, !!mf.icons[size], 'missing');
+}
+check('action has an icon', !!(mf.action && mf.action.default_icon && mf.action.default_icon['16']), 'toolbar button would have no icon');
+check('no remote code patterns', !/content_security_policy[\s\S]*unsafe-eval/.test(JSON.stringify(mf)) && !mf.content_security_policy, 'explicit CSP present, review it');
+const storeDocs = readFileSync(new URL('../STORE.md', import.meta.url), 'utf8');
+check('privacy policy exists', readFileSync(new URL('../PRIVACY.md', import.meta.url), 'utf8').length > 500);
+check('store doc justifies every permission', mf.permissions.every((p) => storeDocs.includes('`' + p + '`')), mf.permissions.filter((p) => !storeDocs.includes('`' + p + '`')).join(','));
+check('store doc covers both host permissions', mf.host_permissions.every((h) => storeDocs.includes(h)), mf.host_permissions.filter((h) => !storeDocs.includes(h)).join(','));
+check('privacy doc discloses plain-text passwords', /plain text/i.test(readFileSync(new URL('../PRIVACY.md', import.meta.url), 'utf8')));
+
+// The zip is what Chrome actually receives, so its shape is part of the contract.
+const zip = fileURLToPath(new URL(`../release/wp-dev-pad-${mf.version}.zip`, import.meta.url));
+if (existsSync(zip)) {
+  const listing = execFileSync('tar.exe', ['-tf', zip], { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+  check('zip has manifest.json at the root', listing.includes('manifest.json'), listing.slice(0, 3).join(' '));
+  check('zip entries use forward slashes', !listing.some((f) => f.includes('\\')), listing.find((f) => f.includes('\\')) || 'ok');
+  check('zip omits apps-script.gs', !listing.some((f) => /apps-script/i.test(f)));
+  check('zip omits source and tests', !listing.some((f) => /^(src|tools|node_modules)\//.test(f)));
+  for (const rel of [mf.side_panel.default_path, mf.background.service_worker, ...Object.values(mf.icons)]) {
+    check(`zip contains ${rel}`, listing.includes(rel));
+  }
+} else {
+  check('store zip not built yet (run npm run store:zip)', true, 'skipped');
+}
 
 console.log('web app url guard');
 const sheetSrc = src('sheet.js');

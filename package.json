@@ -1,6 +1,6 @@
 {
   "name": "wp-dev-pad",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "MV3 side panel: snippets, site checklists and a WordPress handbook backed by one Google Sheet.",
@@ -10,6 +10,7 @@
     "check": "node build.mjs --check",
     "smoke": "node tools/smoke.mjs",
     "ui": "node build.mjs --check && node tools/dom-smoke.mjs",
+    "store:zip": "node tools/make-store-zip.mjs",
     "probe": "node tools/headless-probe.mjs",
     "icons": "node tools/make-icons.mjs",
     "verify": "node tools/smoke.mjs && node build.mjs --check && node tools/dom-smoke.mjs && node build.mjs && node tools/headless-probe.mjs"

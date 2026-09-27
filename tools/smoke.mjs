@@ -126,6 +126,8 @@ console.log('web app url guard');
 const sheetSrc = src('sheet.js');
 check('rejects a non-/exec url', sheetSrc.includes('/exec\\/?$/.test(url)'), 'no /exec guard');
 check('names the /dev mistake specifically', sheetSrc.includes('not a deployment URL') && sheetSrc.includes('Deploy > Manage deployments'), 'no /dev hint');
+check('html reply is explained, not raw', sheetSrc.includes('HTML page instead of JSON') && sheetSrc.includes('doPost function'), 'no html explanation');
+check('unknown action names itself', /UNKNOWN_ACTION/.test(sheetSrc) && sheetSrc.includes('different versions'), 'no unknown-action hint');
 check('every action has a function', actions.every((a) => new RegExp(`function fn${a[0].toUpperCase()}${a.slice(1)}\\b`).test(gs)),
   actions.filter((a) => !new RegExp(`function fn${a[0].toUpperCase()}${a.slice(1)}\\b`).test(gs)).join(','));
 check('client sends userAction', /callWebApp\('manageUser', \{ userAction: action/.test(readFileSync(new URL('../src/auth.js', import.meta.url), 'utf8')));

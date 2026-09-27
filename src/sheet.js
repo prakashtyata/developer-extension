@@ -30,6 +30,14 @@ export function readableError(msg) {
     HOST_REQUIRED: 'That site is required.'
   };
   if (known[raw]) return known[raw];
+  // The server appends the action it did not recognise. Naming it turns a dead
+  // end into an obvious version mismatch.
+  const unknown = /^UNKNOWN_ACTION:\s*(.*)$/.exec(raw);
+  if (unknown) {
+    return `The web app does not know the "${unknown[1] || '(empty)'}" action. `
+      + 'That means the extension and the Apps Script deployment are different versions. '
+      + 'Redeploy the latest apps-script.gs, then press Test connection and check the version.';
+  }
   const tab = /^TAB_MISSING:\s*(.+)$/.exec(raw);
   if (tab) return `The sheet has no "${tab[1]}" tab yet. Run "Test connection & seed" in Settings.`;
   if (/PERMISSION|not accessible|Authorization/i.test(raw)) {
@@ -90,11 +98,22 @@ export async function callWebApp(action, payload = {}) {
     );
   }
   if (!res.ok) throw new Error(`Web app returned HTTP ${res.status}.`);
+  const text = await res.text();
   let json;
   try {
-    json = JSON.parse(await res.text());
+    json = JSON.parse(text);
   } catch {
-    throw new Error('Web app returned a non-JSON response. Is the /exec URL correct?');
+    // Google answers a bad or non-web-app URL with an HTML page. Naming what came
+    // back turns "non-JSON response" into something the user can act on.
+    const head = text.replace(/\s+/g, ' ').trim().slice(0, 80);
+    const isHtml = /^\s*(<!DOCTYPE|<html)/i.test(text);
+    throw new Error(
+      isHtml
+        ? 'The web app returned an HTML page instead of JSON, so this is not a working '
+          + 'web app deployment. Check the URL ends in /exec, and that the Apps Script '
+          + `project has a doPost function. First 80 characters: "${head}"`
+        : `The web app returned something that is not JSON: "${head}"`
+    );
   }
   if (!json || json.ok !== true) {
     const err = new Error((json && json.error) || 'Web app call failed.');

@@ -121,6 +121,11 @@ check('no hashing left', !/sha256_/.test(gs), 'sha256 still present');
 check('client sends name and password', /name: S\.session \? S\.session\.name/.test(src('sheet.js')) && /password: S\.session \? S\.session\.password/.test(src('sheet.js')));
 check('client session has no key field', !/session\.key\b/.test(src('sheet.js') + src('auth.js') + src('store.js')));
 check('client authenticates with name + password', /authenticate\(rawName, rawPassword\)/.test(src('auth.js')));
+
+console.log('web app url guard');
+const sheetSrc = src('sheet.js');
+check('rejects a non-/exec url', sheetSrc.includes('/exec\\/?$/.test(url)'), 'no /exec guard');
+check('names the /dev mistake specifically', sheetSrc.includes('not a deployment URL') && sheetSrc.includes('Deploy > Manage deployments'), 'no /dev hint');
 check('every action has a function', actions.every((a) => new RegExp(`function fn${a[0].toUpperCase()}${a.slice(1)}\\b`).test(gs)),
   actions.filter((a) => !new RegExp(`function fn${a[0].toUpperCase()}${a.slice(1)}\\b`).test(gs)).join(','));
 check('client sends userAction', /callWebApp\('manageUser', \{ userAction: action/.test(readFileSync(new URL('../src/auth.js', import.meta.url), 'utf8')));

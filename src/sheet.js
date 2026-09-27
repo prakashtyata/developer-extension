@@ -56,6 +56,17 @@ async function fetchCsv(sheetId, tab) {
 export async function callWebApp(action, payload = {}) {
   const url = (S.settings.webAppUrl || '').trim();
   if (!url) throw new Error('No web app URL set. Open Settings and paste the /exec URL.');
+  // A /dev URL is the script editor's address, not a deployment. It answers with
+  // an HTML error page, so every action fails in a way that looks like a network
+  // problem. Catch it before it can waste an afternoon.
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?$/.test(url)) {
+    const kind = /\/dev\/?$/.test(url) ? '/dev' : url.split('/').pop() || url;
+    throw new Error(
+      `That web app URL is not a deployment URL (it ends in "${kind}"). `
+      + 'In Apps Script open Deploy > Manage deployments, click the deployment, '
+      + 'and copy the Web app URL, which ends in /exec.'
+    );
+  }
   const body = {
     action,
     sheetId: S.settings.sheetId,

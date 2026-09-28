@@ -45,9 +45,8 @@ upload; the store rejects a re-upload of a version it has already seen.
 > team edits the same library instead of passing code around in chat.
 >
 > **Snippets.** A searchable library with copy buttons, tags, categories and
-> syntax highlighting for PHP, JavaScript, TypeScript, HTML, CSS, SCSS, Bash,
-> SQL, JSON, YAML, Python, Markdown and diff. Select code and copy, or copy a
-> whole snippet with one click.
+> syntax highlighting, so the code you saved reads clearly when you come back to
+> it. Select code and copy, or copy a whole snippet with one click.
 >
 > **Checklist.** A WordPress launch and maintenance checklist per site. Tick items
 > off, add a note, and watch the progress bar for the site you currently have
@@ -62,7 +61,7 @@ upload; the store rejects a re-upload of a version it has already seen.
 > snippet library stays curated without blocking the team.
 >
 > **People.** Add people by name and password. Editors queue their changes;
-> admins write directly. No access keys to generate, copy or paste.
+> admins write directly.
 >
 > **Your data stays in your sheet.** There is no analytics, no advertising and no
 > third-party server. The extension talks only to the Google Sheet and Apps Script
@@ -71,6 +70,26 @@ upload; the store rejects a re-upload of a version it has already seen.
 >
 > Sign-in is required because the snippet library is shared with your team, not
 > published publicly.
+
+### Do not list the supported languages
+
+An earlier revision of this description ended with a run-on list of every
+language the editor highlights:
+
+> JavaScript, TypeScript, HTML, CSS, SCSS, JSON, YAML, Python, SQL, Bash, XML,
+> Markdown, diff and plain text.
+
+Chrome rejected it for **keyword spam** (Routing ID FZSL), quoting that line
+verbatim. The list was accurate, but it is exactly the shape an automated
+metadata check looks for: a dense run of unrelated, comma-separated terms with
+no sentences around them. Naming them does not help the reader choose the
+extension, and PHP alone is the only one that matters for a WordPress tool.
+
+Say "syntax highlighting" and let the extension speak for itself. The same
+applies to anything else in this file that reads as a bare enumeration: the
+permission names in section 5 are fine, because each is followed by a sentence
+explaining what it does, but do not add a language list, a feature matrix, or a
+list of supported CMS platforms anywhere in the listing copy.
 
 ## 4. Privacy practices
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "WP Dev Pad",
   "short_name": "Dev Pad",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "WordPress snippets, site checklists and a handbook, kept in sync with one Google Sheet.",
   "minimum_chrome_version": "114",
   "permissions": ["storage", "sidePanel", "tabs", "clipboardWrite"],

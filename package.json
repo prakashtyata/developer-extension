@@ -1,6 +1,6 @@
 {
   "name": "wp-dev-pad",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "MV3 side panel: snippets, site checklists and a WordPress handbook backed by one Google Sheet.",

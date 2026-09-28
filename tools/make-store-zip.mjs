@@ -96,6 +96,11 @@ async function main() {
   const size = (await stat(zip)).size;
   console.log(`packaged -> ${basename(zip)}  (${(size / 1024).toFixed(0)} kb)`);
   console.log(`contains: ${referenced.length} referenced assets, root has manifest.json`);
+
+  // Read the archive back and check it the way the store will, so a package that
+  // was built is never quietly handed over without being validated.
+  execFileSync(process.execPath, [resolve(root, 'tools/check-package.mjs'), zip], { stdio: 'inherit' });
+
   console.log('upload this file at chrome.google.com/webstore');
 }
 

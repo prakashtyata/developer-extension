@@ -27,6 +27,37 @@ if `dist/` has not been built. It contains `manifest.json`, `dist/` and
 Upload that zip. Then bump `version` in `manifest.json` before every later
 upload; the store rejects a re-upload of a version it has already seen.
 
+### Two descriptions, two limits
+
+The dashboard has a description box, and `manifest.json` has another. They are
+different fields with different limits, and the store's error names the one it
+means:
+
+| Where | Limit | Too long gives you |
+| --- | --- | --- |
+| Store listing description | 16,000 | a review rejection |
+| `manifest.json` `description` | **132** | `There was a problem uploading your file` |
+
+An over-long `manifest.json` description is an **upload** failure, not a review
+verdict, so it never reaches a reviewer. The build refuses to package above 132
+and the packaged zip is checked again after it is written.
+
+### Check any zip before you upload it
+
+```bash
+npm run store:check -- <path-to-zip>
+```
+
+This reads the archive rather than the working tree, so it reports the file you
+would actually upload: version, description length, and whether the shape is
+acceptable. Exit code is non-zero when the package will be rejected.
+
+> Do not zip the project folder by hand. A folder zip puts `manifest.json` one
+> level down, where the store cannot see it, and drags in `node_modules/`,
+> `src/`, `tools/`, source maps and `apps-script.gs` — the Apps Script backend
+> would become public to anyone who unzips the package. Only the
+> `release/` zip is shaped correctly. Run `store:check` on anything else first.
+
 ## 3. Listing copy
 
 **Category:** Developer Tools → Workflow & Planning

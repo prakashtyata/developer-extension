@@ -281,6 +281,27 @@ const seededState = {
 const dom2 = makeDom(seededState);
 const errors2 = dom2.errorLog;
 
+// Booting with a snippet already selected is a normal state, not an edge case:
+// open a snippet, close the panel, reopen it. If the detail pane comes back
+// empty the user is left staring at a blank screen with no way to tell why.
+const reopenedState = JSON.parse(JSON.stringify(seededState));
+reopenedState.ui.selectedSnippet = 'wp_defer_js';
+const domReopen = makeDom(reopenedState);
+const errorsReopen = domReopen.errorLog;
+
+await new Promise((r) => setTimeout(r, 800));
+
+const dR = domReopen.window.document;
+check('reopen: no load-time error', errorsReopen.length === 0, errorsReopen.map((e) => (e.message || e) + '').join(' | '));
+check('reopen: the persisted snippet is opened, not an empty pane', !!dR.querySelector('#snip-title'),
+  `#snip-detail children=${(dR.querySelector('#snip-detail') || { childElementCount: 'no node' }).childElementCount}`);
+check('reopen: the title field holds the selected snippet', (dR.querySelector('#snip-title') || {}).value === 'Defer JS',
+  `value=${(dR.querySelector('#snip-title') || {}).value}`);
+check('reopen: the list marks it active', !!dR.querySelector('#panel-snippets .row-active'),
+  `${dR.querySelectorAll('#panel-snippets .row-active').length} active rows`);
+check('reopen: the detail takes over the tab', !!dR.querySelector('#panel-snippets .split-takeover'),
+  dR.querySelector('#panel-snippets .split').className);
+
 await new Promise((r) => setTimeout(r, 800));
 const d2 = dom2.window.document;
 const q2 = (s) => d2.querySelector(s);
